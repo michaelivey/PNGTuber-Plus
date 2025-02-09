@@ -379,7 +379,7 @@ func _on_save_dialog_file_selected(path):
 			data[id] = {}
 			data[id]["type"] = "sprite"
 			data[id]["path"] = child.path
-			data[id]["imageData"] = Marshalls.raw_to_base64(child.imageData.save_png_to_buffer())
+			data[id]["imageData"] = Marshalls.raw_to_base64(child.get_image().save_png_to_buffer())
 			data[id]["identification"] = child.id
 			data[id]["parentId"] = child.parentId
 			
@@ -487,6 +487,7 @@ func _on_duplicate_button_pressed():
 	sprite.animSpeed = Global.heldSprite.animSpeed
 	
 	sprite.costumeLayers = Global.heldSprite.costumeLayers
+	sprite.loadedImageData = Global.heldSprite.loadedImageData
 	
 	origin.add_child(sprite)
 	sprite.position = Global.heldSprite.position + Vector2(16,16)

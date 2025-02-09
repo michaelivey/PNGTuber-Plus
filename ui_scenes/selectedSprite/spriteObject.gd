@@ -3,7 +3,6 @@ extends Node2D
 var type = "sprite"
 
 #Passed Variables
-var imageData = null
 var tex = null
 @export var path = ""
 
@@ -32,33 +31,33 @@ var imageSize = Vector2.ZERO
 #Visuals
 var mouseOffset = Vector2.ZERO
 var grabDelay = 0
-var size = Vector2(1,1)
 
-var showOnTalk = 0
-var showOnBlink = 0
+var showOnTalk : int = 0
+var showOnBlink : int = 0
 
 var z = 0
 
 #Movement
-var heldTicks = 0
-var dragSpeed = 0
+var heldTicks : float= 0
+var dragSpeed : float= 0
 
 
 #Origin
-var origTick = 0
-var offset = Vector2.ZERO
+var origTick : float = 0
+var offset : Vector2 = Vector2.ZERO
+var bitmapUsedRect : Rect2i = Rect2i(0,0,0,0)
 
 #Wobble
-var xFrq = 0.0
-var xAmp = 0.0
+var xFrq : float = 0.0
+var xAmp : float = 0.0
 
-var yFrq = 0.0
-var yAmp = 0.0
+var yFrq : float = 0.0
+var yAmp : float = 0.0
 
 #Rotational Drag
-var rdragStr = 0
-var rLimitMax = 180
-var rLimitMin = -180
+var rdragStr : float  = 0
+var rLimitMax : float  = 180
+var rLimitMin : float  = -180
 
 #Layer
 var costumeLayers = [1,1,1,1,1,1,1,1,1,1]
@@ -82,44 +81,62 @@ var tick = 0
 #Vis toggle
 var toggle = "null"
 
-func _ready():
+func get_image()-> Image:
+	return img_from_data_string(loadedImageData)
 	
-	Global.main.spriteVisToggles.connect(visToggle)
-	
+func img_from_data_string(dataString: String) -> Image:
+	var data = Marshalls.base64_to_raw(loadedImageData)
 	var img = Image.new()
-	var err = img.load(path)
-	if err != OK:
-		#Runs if image import fails. Needs error dialog box at some point
-		if loadedImageData == null:
-			Global.epicFail(err)
-			print_debug("Failed to load image.")
-			queue_free()
-			return
-		else:
-			var data = Marshalls.base64_to_raw(loadedImageData)
-			var errr = img.load_png_from_buffer(data)
-			if errr != OK:
+	var errr = img.load_png_from_buffer(data)
+	if errr != OK:
+		Global.epicFail(errr)
+		print_debug("Failed to load image.")
+		queue_free()
+		return null	
+	return img
+			
+func reload_img_data(imgPath: String, internalImgDataFallback: bool) -> bool:
+	var externalFileExists = FileAccess.file_exists(imgPath)
+	var img = Image.new()
+	
+	if (externalFileExists):
+		var err = img.load(imgPath)
+		if err != OK:
+			#Runs if image import fails. Needs error dialog box at some point
+			if loadedImageData == null:
 				Global.epicFail(err)
 				print_debug("Failed to load image.")
 				queue_free()
-				return
+				return false
+	elif (internalImgDataFallback):
+		img = img_from_data_string(loadedImageData)
+		if (img == null):
+			return false
+	else:
+		print_debug("Failed to load image.")
+		queue_free()
+		return false
 		
 	var texture = ImageTexture.new()
-	texture = ImageTexture.create_from_image(img)
-	
+	bitmapUsedRect = img.get_used_rect()
+	var smallerTexture = img.get_region(bitmapUsedRect)
+	texture = ImageTexture.create_from_image(smallerTexture)	
 	
 	tex = texture
-	imageData = img
 	
 	imageSize = img.get_size()
 	
 	sprite.texture = tex
-	
+		
 	var bitmap = BitMap.new()
-	bitmap.create_from_image_alpha(imageData)
+	bitmap.create_from_image_alpha(img)
 	
 	var polygons = bitmap.opaque_to_polygons(Rect2(Vector2(0, 0), bitmap.get_size()),4.0) #bitmap.get_size()
-
+	
+	for n in grabArea.get_children():
+		grabArea.remove_child(n)
+		n.queue_free()
+		
 	var b = false
 	for polygon in polygons:
 		b = true
@@ -132,12 +149,10 @@ func _ready():
 		outline.add_point(outline.points[0])
 		grabArea.add_child(outline)
 	
-	size = imageData.get_size()
-	grabArea.position = size*-0.5
-	
-	sprite.offset = offset
-	
-	grabArea.position = (size*-0.5) + offset
+	var offsetArea = bitmapUsedRect.size * 0.5 + Vector2(bitmapUsedRect.position) - imageSize * 0.5
+		
+	sprite.offset = offset + offsetArea
+	grabArea.position = (imageSize * -0.5) + offset
 	
 	changeFrames()
 	setZIndex()
@@ -146,7 +161,15 @@ func _ready():
 		remakePolygon()
 	if !b:
 		remakePolygon()
+		
+	return true
+
+func _ready():
 	
+	Global.main.spriteVisToggles.connect(visToggle)
+	
+	if (!reload_img_data(path, true)):
+		return
 	
 	add_to_group(str(id))
 	await get_tree().create_timer(0.1).timeout
@@ -164,53 +187,10 @@ func _ready():
 		sprite.texture_filter = 2
 	
 func replaceSprite(pathNew):
-	var img = Image.new()
-	var err = img.load(pathNew)
-	if err != OK:
-		#Runs if image import fails. 
-		Global.epicFail(err)
-		print_debug("Failed to load image.")
-		return
 	
 	path = pathNew
-	
-	var texture = ImageTexture.new()
-	texture = ImageTexture.create_from_image(img)
-	
-	
-	tex = texture
-	imageData = img
-	
-	
-	sprite.texture = tex
-	
-	var bitmap = BitMap.new()
-	bitmap.create_from_image_alpha(imageData)
-	
-	var polygons = bitmap.opaque_to_polygons(Rect2(Vector2(0, 0), bitmap.get_size()))
-	
-	for i in grabArea.get_children():
-		i.queue_free()
-	
-	var b = false
-	for polygon in polygons:
-		b = true
-		var collider = CollisionPolygon2D.new()
-		collider.polygon = polygon
-		grabArea.add_child(collider)
-	
-		var outline = outlineScene.instantiate()
-		outline.points = polygon
-		outline.add_point(outline.points[0])
-		grabArea.add_child(outline)
-	size = imageData.get_size()
-
-	sprite.offset = offset
-	
-	grabArea.position = (size*-0.5) + offset
-	
-	if !b:
-		remakePolygon()
+	if (!reload_img_data(pathNew, false)):
+		return	
 
 func _process(delta):
 	tick += 1
@@ -313,8 +293,10 @@ func moveOrigin(dir):
 		
 	offset = Vector2(int(offset.x),int(offset.y))
 	
-	sprite.offset = offset
-	grabArea.position = (size*-0.5) + offset
+	var offsetArea = bitmapUsedRect.size*0.5 + Vector2(bitmapUsedRect.position) - imageSize * 0.5
+
+	sprite.offset = offsetArea + offset
+	grabArea.position = (imageSize * -0.5) + offset
 
 func drag(delta):
 	if dragSpeed == 0:
@@ -374,8 +356,8 @@ func remakePolygon():
 	
 	remadePolygon = true
 	
-func setClip(toggle):
-	if toggle:
+func setClip(setValue):
+	if setValue:
 		sprite.clip_children = CLIP_CHILDREN_AND_DRAW
 		
 		for node in getAllLinkedSprites():
@@ -385,7 +367,7 @@ func setClip(toggle):
 	else:
 		sprite.clip_children = CLIP_CHILDREN_DISABLED
 		
-	clipped = toggle
+	clipped = setValue
 
 func getAllLinkedSprites():
 	var nodes = get_tree().get_nodes_in_group("saved")

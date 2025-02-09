@@ -19,12 +19,12 @@ func setImage():
 		return
 	
 	spriteSpin.texture = Global.heldSprite.tex
-	spriteSpin.pixel_size = 1.5 / Global.heldSprite.imageData.get_size().y
+	spriteSpin.pixel_size = 1.5 / Global.heldSprite.imageSize.y
 	spriteSpin.hframes = Global.heldSprite.frames
 	
 	spriteRotDisplay.texture = Global.heldSprite.tex
 	spriteRotDisplay.offset = Global.heldSprite.offset
-	var displaySize = Global.heldSprite.imageData.get_size().y
+	var displaySize = Global.heldSprite.imageSize.y
 	spriteRotDisplay.scale = Vector2(1,1) * (150.0/displaySize)
 	
 	$Slider/Label.text = "drag: " + str(Global.heldSprite.dragSpeed)
@@ -85,7 +85,7 @@ func setImage():
 			return
 		
 		parentSpin.texture = nodes[0].tex
-		parentSpin.pixel_size = 1.5 / nodes[0].imageData.get_size().y
+		parentSpin.pixel_size = 1.5 / nodes[0].imageSize.y
 		parentSpin.hframes = nodes[0].frames
 		parentSpin.visible = true
 	

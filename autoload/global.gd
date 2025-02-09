@@ -343,7 +343,7 @@ func saveImagesFromData():
 	if sprites.size() <= 0:
 		return
 	for sprite in sprites:
-		var img = sprite.imageData
+		var img = sprite.get_image()
 		var array = sprite.path.split("/",false)
 		var length = sprite.path.length() - array[array.size()-1].length()
 		

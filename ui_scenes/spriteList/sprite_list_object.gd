@@ -21,7 +21,7 @@ func _ready():
 	
 	spritePreview.texture = sprite.sprite.texture
 	
-	var displaySize = sprite.imageData.get_size().y
+	var displaySize = sprite.imageSize.y
 	spritePreview.scale = Vector2(1,1) * (60.0/displaySize)
 	spritePreview.offset = sprite.sprite.offset
 	
