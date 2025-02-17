@@ -379,7 +379,7 @@ func _on_save_dialog_file_selected(path):
 			data[id] = {}
 			data[id]["type"] = "sprite"
 			data[id]["path"] = child.path
-			data[id]["imageData"] = Marshalls.raw_to_base64(child.get_image().save_png_to_buffer())
+			data[id]["imageData"] = child.get_image_data()
 			data[id]["identification"] = child.id
 			data[id]["parentId"] = child.parentId
 			

@@ -46,6 +46,7 @@ var dragSpeed : float= 0
 var origTick : float = 0
 var offset : Vector2 = Vector2.ZERO
 var bitmapUsedRect : Rect2i = Rect2i(0,0,0,0)
+var isCroppedSprite: bool = false
 
 #Wobble
 var xFrq : float = 0.0
@@ -84,6 +85,9 @@ var toggle = "null"
 func get_image()-> Image:
 	return img_from_data_string(loadedImageData)
 	
+func get_image_data()-> String:
+	return loadedImageData
+	
 func img_from_data_string(dataString: String) -> Image:
 	var data = Marshalls.base64_to_raw(loadedImageData)
 	var img = Image.new()
@@ -95,7 +99,7 @@ func img_from_data_string(dataString: String) -> Image:
 		return null	
 	return img
 			
-func reload_img_data(imgPath: String, internalImgDataFallback: bool) -> bool:
+func reload_img_data(imgPath: String, internalImgDataFallback: bool, cropTexture: bool) -> bool:
 	var externalFileExists = FileAccess.file_exists(imgPath)
 	var img = Image.new()
 	
@@ -108,6 +112,7 @@ func reload_img_data(imgPath: String, internalImgDataFallback: bool) -> bool:
 				print_debug("Failed to load image.")
 				queue_free()
 				return false
+		loadedImageData = Marshalls.raw_to_base64(img.save_png_to_buffer())
 	elif (internalImgDataFallback):
 		img = img_from_data_string(loadedImageData)
 		if (img == null):
@@ -118,9 +123,15 @@ func reload_img_data(imgPath: String, internalImgDataFallback: bool) -> bool:
 		return false
 		
 	var texture = ImageTexture.new()
-	bitmapUsedRect = img.get_used_rect()
-	var smallerTexture = img.get_region(bitmapUsedRect)
-	texture = ImageTexture.create_from_image(smallerTexture)	
+	if cropTexture:
+		bitmapUsedRect = img.get_used_rect()
+		isCroppedSprite = true
+		var smallerTexture = img.get_region(bitmapUsedRect)
+		texture = ImageTexture.create_from_image(smallerTexture)	
+	else:
+		bitmapUsedRect = Rect2i(0,0,img.get_width(), img.get_height())
+		isCroppedSprite = false
+		texture = ImageTexture.create_from_image(img)
 	
 	tex = texture
 	
@@ -168,7 +179,8 @@ func _ready():
 	
 	Global.main.spriteVisToggles.connect(visToggle)
 	
-	if (!reload_img_data(path, true)):
+	var cropSprite = false if frames > 1 else true
+	if !reload_img_data(path, true, cropSprite):
 		return
 	
 	add_to_group(str(id))
@@ -188,8 +200,9 @@ func _ready():
 	
 func replaceSprite(pathNew):
 	
-	path = pathNew
-	if (!reload_img_data(pathNew, false)):
+	path = pathNew	
+	var cropSprite = false if frames > 1 else true
+	if !reload_img_data(pathNew, false, cropSprite):
 		return	
 
 func _process(delta):
@@ -225,6 +238,12 @@ func _process(delta):
 func animation():
 	
 	var speed = max(float(animSpeed),Engine.max_fps*6.0)
+	if frames > 1 and isCroppedSprite:
+		reload_img_data(path, true, false)
+		remakePolygon()
+	elif frames == 1 and !isCroppedSprite:
+		reload_img_data(path, true, true)
+		remakePolygon()
 	if animSpeed > 0 and frames > 1:
 		if Global.animationTick % int((speed)/float(animSpeed)) == 0:
 			if sprite.frame == frames - 1:
